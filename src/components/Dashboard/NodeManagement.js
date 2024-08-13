@@ -103,11 +103,16 @@ const NodeManagement = () => {
         <Modal onClose={() => setSelectedNode(null)}>
           <form onSubmit={handleFormSubmit}>
             <h2>{selectedNode.nodeName}</h2>
-            <p>Node ID: {selectedNode.id}</p>
             <p>Online: {selectedNode.isOnline ? 'Yes' : 'No'}</p>
             <p>Endpoint: {selectedNode.endpoint}</p>
+            <p>Country: {selectedNode.country}</p>
+            <p>City: {selectedNode.city}</p>
+            <p>Region: {selectedNode.region}</p>
+            <p>Storage: {selectedNode.storageStats.usedStorage} / {selectedNode.storageStats.availableStorage} bytes</p>
+            <p>Allocated File Storage: {selectedNode.allocatedFileStorage.usedStorage} / {selectedNode.allocatedFileStorage.availableStorage} bytes</p>
+            <p>Allocated Deployment Storage: {selectedNode.allocatedDeploymentStorage.usedStorage} / {selectedNode.allocatedDeploymentStorage.availableStorage} bytes</p>
             <label>
-              Storage:
+              Update Storage:
               <input
                 type="number"
                 name="storage"
