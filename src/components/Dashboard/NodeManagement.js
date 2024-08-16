@@ -13,6 +13,9 @@ const NodeManagement = () => {
     nodeName: '',
   });
   const [message, setMessage] = useState('');
+  const [uptimeStart, setUptimeStart] = useState(0);
+  const [downtimeStart, setDowntimeStart] = useState(0);
+  const count = 5; // Number of uptime/downtime records to fetch
 
   useEffect(() => {
     fetchNodes();
@@ -32,22 +35,38 @@ const NodeManagement = () => {
     }
   };
 
-  const handleNodeSelect = async (nodeId) => {
+  const fetchNodeDetails = async (nodeId, start, type) => {
     const user = JSON.parse(localStorage.getItem('user'));
     if (!user) return;
 
     try {
       const response = await axios.get(`${apiUrl}/nodemanagement/node/${nodeId}`, {
         headers: { Authorization: `Bearer ${user.token}` },
+        params: {
+          start,
+          count,
+        },
       });
-      setSelectedNode(response.data);
-      setFormData({ 
-        storage: response.data.storageStats ? response.data.storageStats.availableStorage : '', 
-        nodeName: response.data.nodeName 
+
+      const data = response.data;
+
+      setSelectedNode(data);
+      setFormData({
+        storage: data.storageStats ? data.storageStats.availableStorage : '',
+        nodeName: data.nodeName,
       });
+
+      // Update start index based on type (uptime or downtime)
+      if (type === 'uptime') setUptimeStart(start);
+      if (type === 'downtime') setDowntimeStart(start);
+
     } catch (error) {
       console.error('Failed to fetch node details:', error);
     }
+  };
+
+  const handleNodeSelect = async (nodeId) => {
+    fetchNodeDetails(nodeId, 0, 'uptime'); // Fetch initial details with start 0
   };
 
   const handleInputChange = (e) => {
@@ -92,7 +111,7 @@ const NodeManagement = () => {
   };
 
   const calculateStoragePercentage = (used, available) => {
-    return (used / available) * 100;
+    return available > 0 ? (used / available) * 100 : 0;
   };
 
   const getStorageBarColor = (usedPercentage) => {
@@ -127,22 +146,44 @@ const NodeManagement = () => {
                 <div style={{ width: `${calculateStoragePercentage(selectedNode.storageStats.usedStorage, selectedNode.storageStats.availableStorage)}%`, height: '100%', backgroundColor: getStorageBarColor(calculateStoragePercentage(selectedNode.storageStats.usedStorage, selectedNode.storageStats.availableStorage)).used, borderRadius: '5px 0 0 5px' }}></div>
               </div>
             </div>
+            <h3>Allocated File Storage</h3>
+            <div style={{ marginTop: '10px' }}>
+              <p>Used: {selectedNode.allocatedFileStorage.usedStorage} / {selectedNode.allocatedFileStorage.availableStorage} bytes</p>
+              <div style={{ width: '100%', height: '30px', backgroundColor: getStorageBarColor(calculateStoragePercentage(selectedNode.allocatedFileStorage.usedStorage, selectedNode.allocatedFileStorage.availableStorage)).free, position: 'relative', borderRadius: '5px' }}>
+                <div style={{ width: `${calculateStoragePercentage(selectedNode.allocatedFileStorage.usedStorage, selectedNode.allocatedFileStorage.availableStorage)}%`, height: '100%', backgroundColor: getStorageBarColor(calculateStoragePercentage(selectedNode.allocatedFileStorage.usedStorage, selectedNode.allocatedFileStorage.availableStorage)).used, borderRadius: '5px 0 0 5px' }}></div>
+              </div>
+            </div>
+            <h3>Allocated Deployment Storage</h3>
+            <div style={{ marginTop: '10px' }}>
+              <p>Used: {selectedNode.allocatedDeploymentStorage.usedStorage} / {selectedNode.allocatedDeploymentStorage.availableStorage} bytes</p>
+              <div style={{ width: '100%', height: '30px', backgroundColor: getStorageBarColor(calculateStoragePercentage(selectedNode.allocatedDeploymentStorage.usedStorage, selectedNode.allocatedDeploymentStorage.availableStorage)).free, position: 'relative', borderRadius: '5px' }}>
+                <div style={{ width: `${calculateStoragePercentage(selectedNode.allocatedDeploymentStorage.usedStorage, selectedNode.allocatedDeploymentStorage.availableStorage)}%`, height: '100%', backgroundColor: getStorageBarColor(calculateStoragePercentage(selectedNode.allocatedDeploymentStorage.usedStorage, selectedNode.allocatedDeploymentStorage.availableStorage)).used, borderRadius: '5px 0 0 5px' }}></div>
+              </div>
+            </div>
             <h3>Uptime</h3>
             <ul>
               {selectedNode.uptime.map((time, index) => (
                 <li key={index}>{new Date(time).toLocaleString()}</li>
               ))}
             </ul>
+            <button type="button" onClick={() => fetchNodeDetails(selectedNode.nodeId, uptimeStart + count, 'uptime')}>Next Uptime</button>
+            {uptimeStart > 0 && (
+              <button type="button" onClick={() => fetchNodeDetails(selectedNode.nodeId, uptimeStart - count, 'uptime')}>Previous Uptime</button>
+            )}
             <h3>Downtime</h3>
             <ul>
               {selectedNode.downtime.map((downtime, index) => (
                 <li key={index}>
                   <p>Critical Level: {downtime["Critical level"]}</p>
                   <p>Reason: {downtime.Reason}</p>
-                  <p>Timestamp: {new Date(downtime.Timestamp).toLocaleString()}</p>
+                  <p>Timestamp: {new Date(downtime.Timestamp).toLocaleString()}</p> {/* Corrected closing tag */}
                 </li>
               ))}
             </ul>
+            <button type="button" onClick={() => fetchNodeDetails(selectedNode.nodeId, downtimeStart + count, 'downtime')}>Next Downtime</button>
+            {downtimeStart > 0 && (
+              <button type="button" onClick={() => fetchNodeDetails(selectedNode.nodeId, downtimeStart - count, 'downtime')}>Previous Downtime</button>
+            )}
             <h3>Availability</h3>
             <p>Critical Level: {selectedNode.availability["Critical level"]}</p>
             <p>Reason: {selectedNode.availability.Reason}</p>
@@ -166,7 +207,7 @@ const NodeManagement = () => {
               />
             </label>
             <button type="submit">Update</button>
-            <button type="button" onClick={() => handleDeleteNode(selectedNode.id)} style={styles.deleteButton}>Delete</button>
+            <button type="button" onClick={() => handleDeleteNode(selectedNode.nodeId)} style={styles.deleteButton}>Delete</button>
             {message && <p>{message}</p>}
           </form>
         </Modal>
