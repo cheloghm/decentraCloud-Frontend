@@ -20,10 +20,12 @@ const FilesDashboard = () => {
   const [newFilename, setNewFilename] = useState('');
   const [emailToShare, setEmailToShare] = useState('');
   const [emailToRevoke, setEmailToRevoke] = useState('');
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize] = useState(20);
 
   useEffect(() => {
     fetchFiles();
-  }, []);
+  }, [pageNumber]);
 
   const fetchFiles = async () => {
     const user = JSON.parse(localStorage.getItem('user'));
@@ -32,6 +34,7 @@ const FilesDashboard = () => {
     try {
       const response = await axios.get(`${apiUrl}/file/all`, {
         headers: { Authorization: `Bearer ${user.token}` },
+        params: { pageNumber, pageSize },
       });
       setFiles(response.data);
     } catch (error) {
@@ -263,6 +266,16 @@ const FilesDashboard = () => {
     }
   };
 
+  const handleNextPage = () => {
+    setPageNumber((prev) => prev + 1);
+  };
+
+  const handlePreviousPage = () => {
+    if (pageNumber > 1) {
+      setPageNumber((prev) => prev - 1);
+    }
+  };
+
   const renderFileContent = () => {
     if (fileContentType.startsWith('image/')) {
       return <img src={fileContent} alt="file content" style={styles.fileContent} />;
@@ -315,6 +328,10 @@ const FilesDashboard = () => {
             </div>
           </div>
         ))}
+      </div>
+      <div style={styles.pagination}>
+        <button onClick={handlePreviousPage} disabled={pageNumber === 1}>Previous</button>
+        <button onClick={handleNextPage}>Next</button>
       </div>
       {showFileModal && (
         <Modal onClose={() => setShowFileModal(false)} blurBackground>
@@ -439,6 +456,12 @@ const styles = {
   modalMessage: {
     color: 'red',
     marginTop: '10px',
+  },
+  pagination: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: '20px',
   },
 };
 
