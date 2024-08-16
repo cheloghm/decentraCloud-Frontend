@@ -10,6 +10,7 @@ const NodeManagement = () => {
   const [selectedNode, setSelectedNode] = useState(null);
   const [formData, setFormData] = useState({
     storage: '',
+    nodeName: '',
   });
   const [message, setMessage] = useState('');
 
@@ -40,7 +41,10 @@ const NodeManagement = () => {
         headers: { Authorization: `Bearer ${user.token}` },
       });
       setSelectedNode(response.data);
-      setFormData({ storage: response.data.storage });
+      setFormData({ 
+        storage: response.data.storageStats ? response.data.storageStats.availableStorage : '', 
+        nodeName: response.data.nodeName 
+      });
     } catch (error) {
       console.error('Failed to fetch node details:', error);
     }
@@ -57,7 +61,7 @@ const NodeManagement = () => {
     if (!user || !selectedNode) return;
 
     try {
-      await axios.put(`${apiUrl}/nodemanagement/node/${selectedNode.id}`, formData, {
+      await axios.put(`${apiUrl}/nodemanagement/node/${selectedNode.nodeId}`, formData, {
         headers: { Authorization: `Bearer ${user.token}` },
       });
       setMessage('Node updated successfully');
@@ -87,6 +91,16 @@ const NodeManagement = () => {
     }
   };
 
+  const calculateStoragePercentage = (used, available) => {
+    return (used / available) * 100;
+  };
+
+  const getStorageBarColor = (usedPercentage) => {
+    if (usedPercentage < 50) return { used: 'blue', free: 'green' };
+    if (usedPercentage >= 50 && usedPercentage < 75) return { used: 'blue', free: 'yellow' };
+    return { used: 'blue', free: 'red' };
+  };
+
   return (
     <div>
       <h1>Node Management Dashboard</h1>
@@ -103,16 +117,47 @@ const NodeManagement = () => {
         <Modal onClose={() => setSelectedNode(null)}>
           <form onSubmit={handleFormSubmit}>
             <h2>{selectedNode.nodeName}</h2>
+            <p>Region: {selectedNode.region}</p>
             <p>Online: {selectedNode.isOnline ? 'Yes' : 'No'}</p>
             <p>Endpoint: {selectedNode.endpoint}</p>
-            <p>Country: {selectedNode.country}</p>
-            <p>City: {selectedNode.city}</p>
-            <p>Region: {selectedNode.region}</p>
-            <p>Storage: {selectedNode.storageStats.usedStorage} / {selectedNode.storageStats.availableStorage} bytes</p>
-            <p>Allocated File Storage: {selectedNode.allocatedFileStorage.usedStorage} / {selectedNode.allocatedFileStorage.availableStorage} bytes</p>
-            <p>Allocated Deployment Storage: {selectedNode.allocatedDeploymentStorage.usedStorage} / {selectedNode.allocatedDeploymentStorage.availableStorage} bytes</p>
+            <h3>Storage Stats</h3>
+            <div style={{ marginTop: '10px' }}>
+              <p>Used Storage: {selectedNode.storageStats.usedStorage} / {selectedNode.storageStats.availableStorage} bytes</p>
+              <div style={{ width: '100%', height: '30px', backgroundColor: getStorageBarColor(calculateStoragePercentage(selectedNode.storageStats.usedStorage, selectedNode.storageStats.availableStorage)).free, position: 'relative', borderRadius: '5px' }}>
+                <div style={{ width: `${calculateStoragePercentage(selectedNode.storageStats.usedStorage, selectedNode.storageStats.availableStorage)}%`, height: '100%', backgroundColor: getStorageBarColor(calculateStoragePercentage(selectedNode.storageStats.usedStorage, selectedNode.storageStats.availableStorage)).used, borderRadius: '5px 0 0 5px' }}></div>
+              </div>
+            </div>
+            <h3>Uptime</h3>
+            <ul>
+              {selectedNode.uptime.map((time, index) => (
+                <li key={index}>{new Date(time).toLocaleString()}</li>
+              ))}
+            </ul>
+            <h3>Downtime</h3>
+            <ul>
+              {selectedNode.downtime.map((downtime, index) => (
+                <li key={index}>
+                  <p>Critical Level: {downtime["Critical level"]}</p>
+                  <p>Reason: {downtime.Reason}</p>
+                  <p>Timestamp: {new Date(downtime.Timestamp).toLocaleString()}</p>
+                </li>
+              ))}
+            </ul>
+            <h3>Availability</h3>
+            <p>Critical Level: {selectedNode.availability["Critical level"]}</p>
+            <p>Reason: {selectedNode.availability.Reason}</p>
+            <p>Timestamp: {new Date(selectedNode.availability.Timestamp).toLocaleString()}</p>
             <label>
-              Update Storage:
+              Node Name:
+              <input
+                type="text"
+                name="nodeName"
+                value={formData.nodeName}
+                onChange={handleInputChange}
+              />
+            </label>
+            <label>
+              Storage:
               <input
                 type="number"
                 name="storage"
@@ -122,8 +167,8 @@ const NodeManagement = () => {
             </label>
             <button type="submit">Update</button>
             <button type="button" onClick={() => handleDeleteNode(selectedNode.id)} style={styles.deleteButton}>Delete</button>
+            {message && <p>{message}</p>}
           </form>
-          {message && <p>{message}</p>}
         </Modal>
       )}
     </div>
